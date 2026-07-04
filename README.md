@@ -119,9 +119,8 @@ wonderwiki-clean/
 
 ## 知识体系说明
 
-以下内容来自 `C:\Users\wonde\Documents\wondervault\wiki\sources\knowledge-base-setup-guide.md`：
 
-```markdown
+
 # 个人知识库搭建体系
 
 ## 三件套
