@@ -61,7 +61,7 @@ python serve.py
 - 仅支持 Windows 的 `obsidian://` 协议（Mac/Linux 需自行适配）
 - 不修改你的 Obsidian vault 文件，只读扫描
 
-## 分享给朋友的完整步骤
+
 
 ### 包含的内容
 
@@ -119,9 +119,8 @@ wonderwiki-clean/
 
 ## 知识体系说明
 
-以下内容来自 `C:\Users\wonde\Documents\wondervault\wiki\sources\knowledge-base-setup-guide.md`：
 
-```markdown
+
 # 个人知识库搭建体系
 
 ## 三件套
