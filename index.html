@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WonderWiki — 记忆维基</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --accent: #58a6ff;
+  --accent2: #3fb950;
+  --accent3: #f0883e;
+  --red: #f85149;
+  --purple: #bc8cff;
+  --radius: 8px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* Layout */
+.app { display: flex; height: 100vh; }
+.sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+.sidebar-header { padding: 20px 16px; border-bottom: 1px solid var(--border); }
+.sidebar-header h1 { font-size: 18px; color: var(--accent); }
+.sidebar-header small { font-size: 11px; color: var(--text-muted); }
+.nav { flex: 1; padding: 8px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); cursor: pointer; color: var(--text-muted); font-size: 14px; transition: all .15s; }
+.nav-item:hover { background: rgba(255,255,255,.05); color: var(--text); }
+.nav-item.active { background: rgba(88,166,255,.15); color: var(--accent); }
+.nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+.main { flex: 1; overflow-y: auto; padding: 24px 32px; }
+.panel { display: none; }
+.panel.active { display: block; }
+.panel-title { font-size: 24px; margin-bottom: 20px; font-weight: 600; }
+
+/* Dashboard */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.stat-card .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+.stat-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+.stat-card .value.blue { color: var(--accent); }
+.stat-card .value.green { color: var(--accent2); }
+.stat-card .value.orange { color: var(--accent3); }
+.stat-card .value.purple { color: var(--purple); }
+
+.section-title { font-size: 16px; font-weight: 600; margin: 24px 0 12px; color: var(--text-muted); }
+
+.category-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+.cat-tag { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; transition: all .15s; }
+.cat-tag:hover, .cat-tag.active { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,.1); }
+.cat-tag .count { color: var(--text-muted); margin-left: 4px; }
+
+/* Search */
+.search-box { position: relative; margin-bottom: 20px; }
+.search-box input { width: 100%; padding: 12px 16px 12px 44px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 15px; outline: none; }
+.search-box input:focus { border-color: var(--accent); }
+.search-box .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 18px; }
+.search-results { display: grid; gap: 8px; }
+.result-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; cursor: pointer; transition: all .15s; }
+.result-card:hover { border-color: var(--accent); }
+.result-card .r-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.result-card .r-summary { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.result-card .r-meta { font-size: 11px; color: var(--text-muted); margin-top: 6px; display: flex; gap: 12px; }
+.result-card .r-meta span { display: flex; align-items: center; gap: 3px; }
+.result-card mark { background: rgba(255,200,0,.2); color: #ffe066; border-radius: 2px; padding: 0 2px; }
+
+/* Clip Classifier */
+.clip-list { display: grid; gap: 10px; }
+.clip-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+.clip-item .clip-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.clip-item .clip-preview { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px; max-height: 60px; overflow: hidden; }
+.clip-item .clip-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { padding: 6px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 12px; transition: all .15s; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.primary:hover { background: #4090e0; }
+.btn.green { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+.btn.green:hover { background: #2ea043; }
+.recommend { font-size: 11px; color: var(--accent3); margin-left: 8px; }
+
+/* Knowledge Graph */
+#graph-container { width: 100%; height: 100%; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.graph-controls { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
+.graph-controls label { font-size: 13px; color: var(--text-muted); }
+.graph-controls select { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 13px; }
+
+/* File detail modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; justify-content: center; align-items: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; padding: 24px; }
+.modal h2 { font-size: 20px; margin-bottom: 8px; }
+.modal .modal-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap; }
+.modal .modal-body { font-size: 14px; line-height: 1.7; color: var(--text); white-space: pre-wrap; }
+.modal .close-btn { float: right; background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .sidebar-header h1, .sidebar-header small, .nav-item span { display: none; }
+  .nav-item { justify-content: center; padding: 12px; }
+  .main { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>📚 WonderWiki</h1>
+      <small>记忆维基 v0.1</small>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" data-panel="dashboard"><span class="icon">📊</span><span>仪表盘</span></div>
+      <div class="nav-item" data-panel="search"><span class="icon">🔍</span><span>统一搜索</span></div>
+      <div class="nav-item" data-panel="classify"><span class="icon">📂</span><span>剪藏分类</span></div>
+      <div class="nav-item" data-panel="graph"><span class="icon">🕸️</span><span>知识图谱</span></div>
+      <div class="nav-item" data-panel="browse"><span class="icon">📁</span><span>分类浏览</span></div>
+    </nav>
+  </aside>
+  <main class="main">
+    <!-- Dashboard -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="panel-title">仪表盘</div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="section-title">📂 分类分布</div>
+      <div class="category-bar" id="category-bar"></div>
+      <div class="section-title">🆕 最近更新</div>
+      <div class="search-results" id="recent-list"></div>
+    </div>
+
+    <!-- Search -->
+    <div class="panel" id="panel-search">
+      <div class="panel-title">统一搜索</div>
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="搜索所有笔记标题、摘要、标签、内容...">
+      </div>
+      <div class="category-bar" id="search-filters" style="margin-bottom:12px;"></div>
+      <div class="search-results" id="search-results"></div>
+    </div>
+
+    <!-- Clip Classifier -->
+    <div class="panel" id="panel-classify">
+      <div class="panel-title">剪藏分类助手</div>
+      <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">
+        以下是需要分类的文件。点击推荐分类即可一键移动。
+      </p>
+      <div class="clip-list" id="clip-list"></div>
+    </div>
+
+    <!-- Knowledge Graph -->
+    <div class="panel" id="panel-graph">
+      <div class="panel-title">知识图谱</div>
+      <div class="graph-controls">
+        <label>节点数上限：</label>
+        <select id="graph-limit">
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+          <option value="200">200</option>
+          <option value="500">500</option>
+        </select>
+        <label>最小链接数：</label>
+        <select id="graph-min-links">
+          <option value="1" selected>1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+        <button class="btn" onclick="renderGraph()">刷新</button>
+      </div>
+      <div id="graph-container"></div>
+    </div>
+
+    <!-- Browse -->
+    <div class="panel" id="panel-browse">
+      <div class="panel-title">分类浏览</div>
+      <div class="category-bar" id="browse-categories" style="margin-bottom:16px;"></div>
+      <div class="search-results" id="browse-list"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal()">✕</button>
+    <h2 id="modal-title"></h2>
+    <div class="modal-meta" id="modal-meta"></div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+// ========== DATA ==========
+let allFiles = [];
+let allLinks = [];
+let categoryCounts = {};
+let meta = {};
+
+async function loadData() {
+  const resp = await fetch('http://127.0.0.1:19998/api/files');
+  const data = await resp.json();
+  allFiles = data.files;
+  allLinks = data.links;
+  categoryCounts = data.categories;
+  meta = data.meta;
+  
+  // Sort by date desc
+  allFiles.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  
+  initDashboard();
+  initSearch();
+  initClassify();
+  initBrowse();
+  renderGraph();
+}
+
+// ========== NAVIGATION ==========
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('panel-' + item.dataset.panel).classList.add('active');
+  });
+});
+
+// ========== DASHBOARD ==========
+function initDashboard() {
+  const grid = document.getElementById('stats-grid');
+  grid.innerHTML = `
+    <div class="stat-card"><div class="label">总文件数</div><div class="value blue">${meta.total_files}</div></div>
+    <div class="stat-card"><div class="label">双向链接</div><div class="value purple">${meta.total_links}</div></div>
+    <div class="stat-card"><div class="label">分类数</div><div class="value orange">${Object.keys(categoryCounts).length}</div></div>
+    <div class="stat-card"><div class="label">含摘要</div><div class="value green">${allFiles.filter(f=>f.summary).length}</div></div>
+  `;
+  
+  const bar = document.getElementById('category-bar');
+  bar.innerHTML = '<div class="cat-tag" onclick="filterByCategory(null)">全部</div>' +
+    Object.entries(categoryCounts)
+      .sort((a,b) => b[1]-a[1])
+      .map(([cat, count]) => 
+        `<div class="cat-tag" onclick="filterByCategory('${cat.replace(/'/g,"\\'")}')">${cat}<span class="count">${count}</span></div>`
+      ).join('');
+  
+  // Recent
+  const recent = document.getElementById('recent-list');
+  recent.innerHTML = allFiles.slice(0, 10).map(f => `
+    <div class="result-card" onclick="showDetail('${f._id}')">
+      <div class="r-title">${escHtml(f.title)}</div>
+      ${f.summary ? `<div class="r-summary">${escHtml(f.summary.substring(0, 150))}...</div>` : ''}
+      <div class="r-meta">
+        <span>📁 ${f.category}</span>
+        <span>📅 ${f.date || '-'}</span>
+        <span>📝 ${f.word_count}字</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterByCategory(cat) {
+  // Highlight active
+  document.querySelectorAll('#category-bar .cat-tag').forEach(t => t.classList.remove('active'));
+  if (cat) {
+    const filtered = allFiles.filter(f => f.category === cat);
+    const recent = document.getElementById('recent-list');
+    recent.innerHTML = filtered.slice(0, 15).map(f => `
+      <div class="result-card" onclick="showDetail('${f._id}')">
+        <div class="r-title">${escHtml(f.title)}</div>
+        ${f.summary ? `<div class="r-summary">${escHtml(f.summary.substring(0, 150))}</div>` : ''}
+        <div class="r-meta"><span>📁 ${f.category}</span><span>📅 ${f.date || '-'}</span></div>
+      </div>
+    `).join('');
+  } else {
+    initDashboard();
+  }
+}
+
+// ========== SEARCH ==========
+let searchIndex = [];
+function initSearch() {
+  const input = document.getElementById('search-input');
+  input.addEventListener('input', debounce(() => {
+    const q = input.value.trim().toLowerCase();
+    if (!q) {
+      document.getElementById('search-results').innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">输入关键词搜索所有笔记</p>';
+      return;
+    }
+    const results = searchAll(q);
+    const container = document.getElementById('search-results');
+    if (results.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">没有找到匹配的结果</p>';
+    } else {
+      container.innerHTML = results.map(r => `
+        <div class="result-card" onclick="showDetail('${r.file.path.replace(/'/g,"\\'")}')">
+          <div class="r-title">${highlight(r.file.title, q)}</div>
+          ${r.file.summary ? `<div class="r-summary">${highlight(r.file.summary, q)}</div>` : ''}
+          <div class="r-meta">
+            <span>📁 ${r.file.category}</span>
+            <span>📅 ${r.file.date || '-'}</span>
+            <span>⭐ 相关度 ${Math.round(r.score)}%</span>
+          </div>
+        </div>
+      `).join('');
+    }
+  }, 200));
+  
+  // Search filters
+  const cats = [...new Set(allFiles.map(f => f.category))].sort();
+  document.getElementById('search-filters').innerHTML = cats.map(c => 
+    `<div class="cat-tag" onclick="toggleSearchCat(this,'${c.replace(/'/g,"\\'")}')">${c}</div>`
+  ).join('');
+}
+
+let activeSearchCats = new Set();
+function toggleSearchCat(el, cat) {
+  el.classList.toggle('active');
+  if (activeSearchCats.has(cat)) activeSearchCats.delete(cat);
+  else activeSearchCats.add(cat);
+  // Re-trigger search
+  document.getElementById('search-input').dispatchEvent(new Event('input'));
+}
+
+function searchAll(query) {
+  const terms = query.split(/\s+/);
+  return allFiles
+    .filter(f => {
+      if (activeSearchCats.size > 0 && !activeSearchCats.has(f.category)) return false;
+      return true;
+    })
+    .map(f => {
+      let score = 0;
+      const titleLower = f.title.toLowerCase();
+      const summaryLower = (f.summary || '').toLowerCase();
+      const tagsLower = (f.tags || []).join(' ').toLowerCase();
+      
+      terms.forEach(t => {
+        if (titleLower.includes(t)) score += 10;
+        if (summaryLower.includes(t)) score += 5;
+        if (tagsLower.includes(t)) score += 3;
+      });
+      
+      return { file: f, score };
+    })
+    .filter(r => r.score > 0)
+    .sort((a, b) => b.score - a.score);
+}
+
+// ========== CLASSIFIER ==========
+function initClassify() {
+  // Show files without summary or in Clippings/
+  const container = document.getElementById('clip-list');
+  const needsClassify = allFiles.filter(f => 
+    !f.summary || 
+    f.category === 'Clippings' ||
+    f.category.startsWith('Clippings/')
+  );
+  
+  if (needsClassify.length === 0) {
+    container.innerHTML = '<p style="color:var(--accent2);padding:20px;text-align:center;">✅ 所有文件都已分类！</p>';
+    return;
+  }
+  
+  container.innerHTML = needsClassify.map(f => {
+    const preview = f.summary ? f.summary.substring(0, 100) : f.title;
+    const cats = Object.entries(categoryCounts)
+      .filter(([k]) => k !== 'Clippings' && !k.startsWith('wiki/'))
+      .sort((a,b) => b[1]-a[1]);
+    const topCat = cats.length > 0 ? cats[0][0] : 'uncategorized';
+    
+    return `
+      <div class="clip-item">
+        <div class="clip-title">${escHtml(f.title)}</div>
+        <div class="clip-preview">${escHtml(preview)}...</div>
+        <div class="clip-actions">
+          <button class="btn primary" onclick="recommendCategory('${f.path.replace(/'/g,"\\'")}','${topCat.replace(/'/g,"\\'")}')">
+            分类到 ${topCat}
+          </button>
+          ${cats.slice(1,4).map(([c]) => 
+            `<button class="btn" onclick="recommendCategory('${f.path.replace(/'/g,"\\'")}','${c.replace(/'/g,"\\'")}')">${c}</button>`
+          ).join('')}
+        </div>
+        <span class="recommend">💡 推荐: ${topCat}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function recommendCategory(path, category) {
+  // 调用 API 移动文件
+  fetch('http://localhost:19998/api/move', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      source_path: path,
+      target_category: category
+    })
+  })
+  .then(res => res.json())
+  .then(result => {
+    if (result.success) {
+      alert('✅ ' + result.message);
+      // 重新加载数据
+      location.reload();
+    } else {
+      alert('❌ 移动失败: ' + result.error);
+    }
+  })
+  .catch(err => {
+    alert('❌ 网络错误: ' + err.message);
+  });
+}
+
+// ========== BROWSE ==========
+function initBrowse() {
+  const container = document.getElementById('browse-categories');
+  const cats = [...new Set(allFiles.map(f => f.category))].sort();
+  container.innerHTML = cats.map(c => 
+    `<div class="cat-tag" onclick="browseCategory('${c.replace(/'/g,"\\'")}')">${c} (${categoryCounts[c] || 0})</div>`
+  ).join('');
+  
+  // Show all initially
+  browseCategory(null);
+}
+
+function browseCategory(cat) {
+  const filtered = cat ? allFiles.filter(f => f.category === cat) : allFiles;
+  const list = document.getElementById('browse-list');
+  list.innerHTML = filtered.slice(0, 50).map(f => `
+    <div class="result-card" onclick="showDetail('${f._id}')">
+      <div class="r-title">${escHtml(f.title)}</div>
+      ${f.summary ? `<div class="r-summary">${escHtml(f.summary.substring(0, 150))}</div>` : ''}
+      <div class="r-meta">
+        <span>📁 ${f.category}</span>
+        <span>🏷️ ${(f.tags||[]).join(', ') || '无标签'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ========== MODAL ==========
+function showDetail(pathId) {
+  const file = allFiles.find(f => f._id === pathId);
+  if (!file) return;
+  
+  document.getElementById('modal-title').textContent = file.title;
+  document.getElementById('modal-meta').innerHTML = `
+    <span>📁 ${file.category}</span>
+    <span>📅 ${file.date || '未知'}</span>
+    <span>📝 ${file.word_count}字</span>
+    <span>🏷️ ${(file.tags||[]).join(', ') || '无标签'}</span>
+    ${file.source ? `<span>🔗 ${escHtml(String(file.source))}</span>` : ''}
+  `;
+  
+  let body = '';
+  if (file.summary) body += `<p style="margin-bottom:12px;"><strong>摘要：</strong>${escHtml(file.summary)}</p>`;
+  if (file.source) {
+    const srcUrl = String(file.source);
+    body += `<p style="margin-bottom:12px;"><strong>来源：</strong><a href="${escHtml(srcUrl)}" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;">${escHtml(srcUrl)}</a></p>`;
+  }
+  if (file.links_to && file.links_to.length > 0) {
+    body += `<p style="margin-bottom:12px;"><strong>内部链接：</strong>${file.links_to.map(l => `[${escHtml(l)}]`).join(', ')}</p>`;
+  }
+  body += `<div style="margin-top:16px;display:flex;gap:8px;">
+    <button onclick="openFileInObsidian('${file._id}')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;font-size:14px;">📂 在 Obsidian 中打开</button>
+    <button onclick="copyFilePathById('${file._id}')" style="padding:8px 16px;background:var(--bg-secondary);color:var(--text-secondary);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:14px;">📋 复制路径</button>
+  </div>`;
+  
+  document.getElementById('modal-body').innerHTML = body || '<p style="color:var(--text-muted);">暂无详细内容。</p>';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function openFileInObsidian(fileId) {
+  const file = allFiles.find(f => f._id === fileId);
+  if (!file) { alert('文件未找到'); return; }
+  const filePath = file.path;
+  const encoded = encodeURIComponent(filePath).replace(/%5C/g, '%2F');
+  // 先用 vault UUID，更可靠
+  window.location.href = 'obsidian://open?vault=9333a737325ab2f6&file=' + encoded;
+}
+
+function copyFilePathById(fileId) {
+  const file = allFiles.find(f => f._id === fileId);
+  if (!file) return;
+  const fullPath = 'C:\\Users\\wonde\\Documents\\wondervault\\' + file.path;
+  navigator.clipboard.writeText(fullPath).then(() => {
+    alert('路径已复制到剪贴板');
+  }).catch(() => {
+    prompt('复制以下路径：', fullPath);
+  });
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+function showFileList(filePaths, nodeName) {
+  const modal = document.getElementById('modal-overlay');
+  const title = document.getElementById('modal-title');
+  const body = document.getElementById('modal-body');
+  
+  title.textContent = `📎 ${nodeName} (${filePaths.length} 个文件)`;
+  
+  // 解析 wiki-link 格式，提取真实路径
+  function parseWikiLink(link) {
+    // 去掉 | 后面的别名部分
+    const clean = link.split('|')[0];
+    // 去掉 .md 后缀用于匹配
+    const withoutExt = clean.replace(/\.md$/, '');
+    return { clean, withoutExt };
+  }
+  
+  // 找出匹配的原始文件
+  const matchedFiles = [];
+  filePaths.forEach(fp => {
+    const { clean, withoutExt } = parseWikiLink(fp);
+    
+    // 精确匹配（带或不带 .md）
+    let file = allFiles.find(f => f.path === clean || f.path.replace(/\.md$/, '') === withoutExt);
+    
+    if (!file) {
+      // 尝试模糊匹配（文件路径的一部分）
+      file = allFiles.find(f => f.path.includes(withoutExt) || withoutExt.includes(f.path.split('\\').pop()));
+    }
+    
+    if (file) {
+      matchedFiles.push(file);
+    }
+  });
+  
+  let html = '';
+  if (matchedFiles.length > 0) {
+    // 去重
+    const seen = new Set();
+    const unique = matchedFiles.filter(f => {
+      if (seen.has(f.path)) return false;
+      seen.add(f.path);
+      return true;
+    });
+    
+    unique.forEach(file => {
+      const summary = file.summary || '无摘要';
+      const sourceLink = file.source ? `<a href="${escHtml(file.source)}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:12px;">🔗 原始链接</a>` : '';
+      html += `<div style="padding:10px;border-bottom:1px solid var(--border);">
+        <div style="font-weight:bold;margin-bottom:4px;">${escHtml(file.title)}</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">${escHtml(file.path)}</div>
+        ${sourceLink ? `<div style="margin-bottom:4px;">${sourceLink}</div>` : ''}
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">${escHtml(summary.substring(0, 200))}${summary.length > 200 ? '...' : ''}</div>
+        <button onclick="openFileInObsidian('${file._id}')" style="padding:4px 12px;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">📂 在 Obsidian 中打开</button>
+      </div>`;
+    });
+  } else {
+    // 显示所有关联的原始路径
+    filePaths.forEach(fp => {
+      html += `<div style="padding:8px 10px;border-bottom:1px solid var(--border);">
+        <div style="font-size:13px;color:var(--text-secondary);">${escHtml(fp)}</div>
+      </div>`;
+    });
+  }
+  
+  body.innerHTML = html || '<p style="color:var(--text-muted);">没有找到关联文件</p>';
+  modal.classList.add('show');
+}
+
+document.getElementById('modal-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// ========== KNOWLEDGE GRAPH ==========
+function renderGraph() {
+  const container = document.getElementById('graph-container');
+  container.innerHTML = '';
+  
+  const limit = parseInt(document.getElementById('graph-limit').value);
+  const minLinks = parseInt(document.getElementById('graph-min-links').value);
+  
+  // Build node-link data
+  const nodeMap = {};
+  allLinks.slice(0, 500).forEach(link => {
+    const from = link.from.split('/').pop().substring(0, 40);
+    const to = link.to.substring(0, 40);
+    
+    if (!nodeMap[from]) nodeMap[from] = { id: from, group: 'file', files: [] };
+    if (!nodeMap[to]) nodeMap[to] = { id: to, group: 'concept', files: [] };
+    
+    nodeMap[from].files.push(link.from);
+    nodeMap[to].files.push(link.to);
+  });
+  
+  // Filter by min links
+  const nodes = Object.values(nodeMap)
+    .filter(n => n.files.length >= minLinks)
+    .slice(0, limit)
+    .map((n, i) => ({ 
+      id: n.id, 
+      group: n.group, 
+      freq: n.files.length, 
+      filePaths: n.files,
+      x: Math.random() * 800,
+      y: Math.random() * 600
+    }));
+  
+  const links = [];
+  const nodeIds = new Set(nodes.map(n => n.id));
+  allLinks.slice(0, 500).forEach(link => {
+    const from = link.from.split('/').pop().substring(0, 40);
+    const to = link.to.substring(0, 40);
+    if (nodeIds.has(from) && nodeIds.has(to) && from !== to) {
+      links.push({ source: from, target: to });
+    }
+  });
+  
+  if (nodes.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">没有足够的链接数据</p>';
+    return;
+  }
+  
+  // Color scale
+  const colorScale = d3.scaleOrdinal()
+    .domain(['file', 'concept'])
+    .range(['#58a6ff', '#f0883e']);
+  
+  // Force simulation
+  const simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(80))
+    .force('charge', d3.forceManyBody().strength(-200))
+    .force('center', d3.forceCenter(400, 300))
+    .force('collision', d3.forceCollide().radius(25))
+    .force('x', d3.forceX(400).strength(0.06))
+    .force('y', d3.forceY(300).strength(0.06));
+  
+  const svg = d3.select(container).append('svg')
+    .attr('width', '100%')
+    .attr('height', '100%')
+    .attr('viewBox', `0 0 800 600`)
+    .attr('preserveAspectRatio', 'xMidYMid meet');
+  
+  // Zoom and pan
+  const zoom = d3.zoom()
+    .scaleExtent([0.1, 4])
+    .on('zoom', (event) => {
+      g.attr('transform', event.transform);
+    });
+  
+  svg.call(zoom);
+  
+  const g = svg.append('g');
+  
+  // Links
+  const link = g.append('g')
+    .selectAll('line')
+    .data(links)
+    .join('line')
+    .attr('stroke', '#30363d')
+    .attr('stroke-width', 1);
+  
+  // Nodes
+  const node = g.append('g')
+    .selectAll('circle')
+    .data(nodes)
+    .join('circle')
+    .attr('r', d => Math.max(8, Math.min(20, d.freq * 1.2)))
+    .attr('fill', d => colorScale(d.group))
+    .attr('opacity', 0.8)
+    .style('cursor', 'pointer')
+    .on('click', (event, d) => {
+      event.stopPropagation();
+      showFileList(d.filePaths, d.id);
+    })
+    .call(d3.drag()
+      .on('start', dragStarted)
+      .on('drag', dragged)
+      .on('end', dragEnded));
+  
+  // Labels
+  const label = g.append('g')
+    .selectAll('text')
+    .data(nodes)
+    .join('text')
+    .text(d => d.id.length > 20 ? d.id.substring(0, 20) + '...' : d.id)
+    .attr('font-size', '13px')
+    .attr('font-weight', '600')
+    .attr('fill', '#c9d1d9')
+    .attr('dx', 14)
+    .attr('dy', 5)
+    .style('cursor', 'pointer')
+    .on('click', (event, d) => {
+      event.stopPropagation();
+      showFileList(d.filePaths, d.id);
+    });
+  
+  simulation.on('tick', () => {
+    link
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y);
+    
+    node.attr('cx', d => d.x).attr('cy', d => d.y);
+    label
+      .attr('x', d => d.x + 8)
+      .attr('y', d => d.y + 4);
+  });
+  
+  // Force simulation warm-up: run initial ticks before rendering
+  simulation.alpha(1).restart();
+  for (let i = 0; i < 600; i++) {
+    simulation.tick();
+  }
+  simulation.alpha(0.5);
+  
+  function dragStarted(event, d) {
+    if (!event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x; d.fy = d.y;
+  }
+  function dragged(event, d) {
+    d.fx = event.x; d.fy = event.y;
+  }
+  function dragEnded(event, d) {
+    if (!event.active) simulation.alphaTarget(0);
+    d.fx = null; d.fy = null;
+  }
+}
+
+// ========== UTILS ==========
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function highlight(text, query) {
+  if (!text) return '';
+  const escaped = escHtml(text);
+  const terms = query.split(/\s+/).filter(Boolean);
+  let result = escaped;
+  terms.forEach(t => {
+    const regex = new RegExp(`(${t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+    result = result.replace(regex, '<mark>$1</mark>');
+  });
+  return result;
+}
+
+function debounce(fn, ms) {
+  let timer;
+  return function(...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+// ========== INIT ==========
+loadData();
+</script>
+</body>
+</html>
