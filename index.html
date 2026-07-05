@@ -136,13 +136,17 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 
     <!-- Search -->
     <div class="panel" id="panel-search">
-      <div class="panel-title">统一搜索</div>
-      <div class="search-box">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="search-input" placeholder="搜索所有笔记标题、摘要、标签、内容...">
+    <div class="panel-title">统一搜索</div>
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="搜索所有笔记标题、摘要、标签、内容...">
+      <div style="position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;gap:4px;">
+        <button class="btn" id="match-mode-btn" onclick="cycleMatchMode()" style="padding:4px 8px;font-size:11px;min-width:60px;" title="切换匹配模式">短语匹配</button>
       </div>
-      <div class="category-bar" id="search-filters" style="margin-bottom:12px;"></div>
-      <div class="search-results" id="search-results"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;" id="search-mode-hint">📌 短语匹配：关键词必须连续出现（如"agent skill"）</div>
+    <div class="category-bar" id="search-filters" style="margin-bottom:12px;"></div>
+    <div class="search-results" id="search-results"></div>
     </div>
 
     <!-- Clip Classifier -->
@@ -284,6 +288,9 @@ function filterByCategory(cat) {
 
 // ========== SEARCH ==========
 let searchIndex = [];
+const MATCH_MODES = ['phrase', 'any', 'all'];
+const MATCH_LABELS = { phrase: '短语匹配', any: '部分匹配', all: '全部匹配' };
+let matchMode = 'phrase'; // phrase = exact phrase, any = OR, all = AND
 function initSearch() {
   const input = document.getElementById('search-input');
   input.addEventListener('input', debounce(() => {
@@ -298,7 +305,7 @@ function initSearch() {
       container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">没有找到匹配的结果</p>';
     } else {
       container.innerHTML = results.map(r => `
-        <div class="result-card" onclick="showDetail('${r.file.path.replace(/'/g,"\\'")}')">
+        <div class="result-card" onclick="showDetail('${r.file._id}')">
           <div class="r-title">${highlight(r.file.title, q)}</div>
           ${r.file.summary ? `<div class="r-summary">${highlight(r.file.summary, q)}</div>` : ''}
           <div class="r-meta">
@@ -316,6 +323,24 @@ function initSearch() {
   document.getElementById('search-filters').innerHTML = cats.map(c => 
     `<div class="cat-tag" onclick="toggleSearchCat(this,'${c.replace(/'/g,"\\'")}')">${c}</div>`
   ).join('');
+}
+
+function cycleMatchMode() {
+  const idx = MATCH_MODES.indexOf(matchMode);
+  matchMode = MATCH_MODES[(idx + 1) % MATCH_MODES.length];
+  const btn = document.getElementById('match-mode-btn');
+  btn.textContent = MATCH_LABELS[matchMode];
+  btn.style.borderColor = matchMode === 'phrase' ? 'var(--accent)' : 'var(--accent2)';
+  btn.style.color = matchMode === 'phrase' ? 'var(--accent)' : 'var(--accent2)';
+  // Update hint text
+  const hints = {
+    phrase: '📌 短语匹配：关键词必须作为整体连续出现（如搜索"agent skill"，"agent and skill"不匹配）',
+    any: '📌 部分匹配：包含任一关键词即可（OR）',
+    all: '📌 全部匹配：包含所有关键词即可（AND）',
+  };
+  document.getElementById('search-mode-hint').textContent = hints[matchMode];
+  // Re-trigger search
+  document.getElementById('search-input').dispatchEvent(new Event('input'));
 }
 
 let activeSearchCats = new Set();
@@ -336,16 +361,34 @@ function searchAll(query) {
     })
     .map(f => {
       let score = 0;
+      let matchedTerms = 0;
       const titleLower = f.title.toLowerCase();
       const summaryLower = (f.summary || '').toLowerCase();
       const tagsLower = (f.tags || []).join(' ').toLowerCase();
+      const bodyFullLower = (f.body_full || '').toLowerCase();
       
+      if (matchMode === 'phrase') {
+        // Exact phrase match: "agent skill" must appear as a continuous string
+        const q = query;
+        if (titleLower.includes(q)) { score += 15; }
+        if (summaryLower.includes(q)) { score += 8; }
+        if (tagsLower.includes(q)) { score += 5; }
+        if (bodyFullLower.includes(q)) { score += 2; }
+        return { file: f, score };
+      }
+      
+      // Split-term modes: check each word independently
       terms.forEach(t => {
-        if (titleLower.includes(t)) score += 10;
-        if (summaryLower.includes(t)) score += 5;
-        if (tagsLower.includes(t)) score += 3;
+        let matched = false;
+        if (titleLower.includes(t)) { score += 10; matched = true; }
+        if (summaryLower.includes(t)) { score += 5; matched = true; }
+        if (tagsLower.includes(t)) { score += 3; matched = true; }
+        if (bodyFullLower.includes(t)) { score += 1; matched = true; }
+        if (matched) matchedTerms++;
       });
       
+      if (matchMode === 'all' && matchedTerms < terms.length) return { file: f, score: 0 };
+      if (matchMode === 'any' && matchedTerms === 0) return { file: f, score: 0 };
       return { file: f, score };
     })
     .filter(r => r.score > 0)

@@ -10,8 +10,8 @@ import shutil
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-VAULT = r'C:\Users\wonde\Documents\wondervault'  # <-- 改成你自己的 Obsidian vault 路径
-DATA_DIR = r'C:\Users\wonde\studyweb\wonderwiki\data'  # <-- 改成 data/ 目录的绝对路径
+VAULT = r'C:\Users\wonde\Documents\wondervault'
+DATA_DIR = r'C:\Users\wonde\studyweb\wonderwiki\data'
 INDEX_JSON = os.path.join(DATA_DIR, 'index.json')
 
 class WonderWikiHandler(BaseHTTPRequestHandler):

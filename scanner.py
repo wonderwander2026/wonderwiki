@@ -17,7 +17,7 @@ class DateEncoder(json.JSONEncoder):
             return obj.isoformat()
         return super().default(obj)
 
-VAULT = r'C:\Users\wonde\Documents\wondervault'  # <-- 改成你自己的 Obsidian vault 路径
+VAULT = r'C:\Users\wonde\Documents\wondervault'
 
 def parse_frontmatter(content):
     """解析 YAML frontmatter"""
@@ -170,6 +170,7 @@ def scan_vault():
                 'word_count': len(content),
                 'links_to': wiki_links[:10],
                 'body_preview': body_content[:2000],
+                'body_full': body_content,
                 '_id': f'f{len(files)}',
             })
     
